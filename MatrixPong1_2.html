@@ -1,0 +1,257 @@
+<html>
+
+<canvas id = "gameCanvas"
+width = "800" 
+height = "600">
+
+
+</canvas>
+
+
+
+<script>
+
+//declare variables
+var canvas;
+var canvasContext;
+
+var ballX;
+var ballY;
+var ballSpeedX = -10;
+var ballSpeedY = -5;
+
+var paddleLeftY = 250;
+var paddleRightY = 250;
+const PADDLE_HEIGHT = 100;
+const PADDLE_WIDTH = 10;
+const BALL_RADIUS = 10;
+
+var playerLeftScore = 0;
+var playerRightScore = 0;
+const WINNING_SCORE = 5;
+
+var showWinScreen = false;
+
+var aiSpeed = 6;
+
+var letters = ["A", "B", "!", "C", "D", "1", "E", "F", "£", "G", "2", "H", "$", "I", "J", "3", "K", "L", "&", "M", "4", "%", "N", "O", "5", "P", "Q", "#", "R", "6", "S", "@", "T", "7", "U", "V", "8", "W", "X", "9", "Y", "Z"];
+var letterIndex = 0;
+
+//Every time the mouse moves this function will be called and will hand it the mouse coords
+function calculateMousePos(evt){
+	//canvas boundaries
+	var rect = canvas.getBoundingClientRect();
+	//taking it form the html document
+	var root = document.documentElement;
+	//gives us x and y coords of mouse within the playable space accounting for scrolling on the page
+	var mouseX = evt.clientX - rect.left - root.scrollLeft;
+	var mouseY = evt.clientY - rect.top - root.scrollTop;
+	//returns the mouse x and y coords
+	return{
+		x:mouseX,
+		y:mouseY
+	};
+}
+
+// if win screen is shown, clicking mouse will set scores to 0 and reset play
+function handleMouseClick(evt){
+	if(showWinScreen){
+		playerLeftScore = 0;
+		playerRightScore = 0;
+		showWinScreen = false;
+	}
+}
+
+
+window.onload = function(){
+	// load once window has finished loading execute this block
+
+	// sets variable 'canvas' to equal 'gameCanvas' created in HTML above
+	canvas = document.getElementById('gameCanvas');
+
+	// sets variable 'canvasContext' to the graphical properties of 'canvas'
+	canvasContext = canvas.getContext('2d');
+	
+	// sets up as 30 fps
+	var framesPerSecond = 30;
+	
+	//set initial position of ball
+	ballX = canvas.width/2;
+	ballY = canvas.height/2;
+
+	//moves and draws everything at fps set abouve	
+	setInterval(function(){
+		moveEverything();
+		drawEverything();
+		//this function has been called in-line as it is only used once, no need to create it elsewhere and call it
+	},1000/framesPerSecond);
+
+	canvas.addEventListener('mousedown', handleMouseClick)
+
+
+	//Event listener to call funtion when mouse is moved calls previous event evt
+	canvas.addEventListener('mousemove', 
+		function(evt){
+			var mousePos = calculateMousePos(evt);
+			//set centre of paddle to mouse position
+			paddleLeftY = mousePos.y - (PADDLE_HEIGHT/2);
+		}
+	)	
+}
+
+
+function ballReset(){
+	if(playerLeftScore >= WINNING_SCORE || playerRightScore >= WINNING_SCORE){
+		showWinScreen = true;
+	}
+	ballSpeedX = - ballSpeedX;
+	ballSpeedY = 5;
+	ballX = canvas.width/2;
+	ballY = canvas.height/2;
+}
+
+function computerMovement(){
+	var paddleRightYCentre = paddleRightY + (PADDLE_HEIGHT/2);
+	if(paddleRightYCentre < ballY - PADDLE_HEIGHT/5){
+		paddleRightY += aiSpeed;
+	} else if(paddleRightYCentre > ballY + PADDLE_HEIGHT/5){
+		paddleRightY -= aiSpeed;
+	}
+}
+
+function moveEverything(){
+	if(showWinScreen){
+		return;
+	}
+	
+	computerMovement();
+	
+	ballX += ballSpeedX;	
+	ballY += ballSpeedY;
+	
+	// if the ball reaches left edge of canvas
+	if(ballX < 0 + PADDLE_WIDTH){
+		// if the ball hits paddle
+		if(ballY > paddleLeftY - BALL_RADIUS && ballY < paddleLeftY+PADDLE_HEIGHT + BALL_RADIUS){
+			// ball change direction
+			ballSpeedX = -ballSpeedX;
+			
+			var deltaY = ballY - (paddleLeftY+PADDLE_HEIGHT/2);
+			ballSpeedY = deltaY * 0.35;
+		}else{
+			playerRightScore++; //must be BEFORE ball reset.
+			ballReset();
+		}
+	}	
+
+	// if the ball reaches right edge of canvas
+	if(ballX > canvas.width - PADDLE_WIDTH){
+		// if the ball hits paddle
+		if(ballY > paddleRightY && ballY < paddleRightY+PADDLE_HEIGHT){
+			// ball change direction
+			ballSpeedX = -ballSpeedX;
+
+			var deltaY = ballY - (paddleRightY+PADDLE_HEIGHT/2);
+			ballSpeedY = deltaY * 0.35;
+		}else{
+			playerLeftScore++;
+			ballReset();
+		}
+	}	
+
+	// if the ball reaches top edge of canvas
+	if(ballY < 0){
+		//change direction
+		ballSpeedY = - ballSpeedY;
+	}	
+
+	//if the ball reaches bottom edge of canvas
+	if(ballY > canvas.height){
+		//change direction
+		ballSpeedY = - ballSpeedY;
+	}
+}
+
+
+function drawEverything(){
+
+	//draw background
+	drawRect(0,0,canvas.width,canvas.height,'black');
+
+	if(showWinScreen){
+		canvasContext.fillStyle = 'green';
+		drawLetterRect(72, 95, 20, 20);
+		
+		drawRect(canvas.width/2 - 100, canvas.height/2 - 150, 200, 200, 'black');
+		
+		canvasContext.fillStyle = 'green';
+		if(playerLeftScore >= WINNING_SCORE){
+			canvasContext.fillText("Player 1 Wins!",canvas.width/2 -28,canvas.height/2-100);
+		}else{
+			canvasContext.fillText("Player 2 Wins!",canvas.width/2 -28,canvas.height/2-100);
+		}
+		canvasContext.fillText("Click to Continue",canvas.width/2 -30,canvas.height/2);
+		return;
+	}
+
+	//draw the net
+	drawNet();	
+
+	//draw left paddle
+	drawLetterRect(12, 2, 0, paddleLeftY);
+
+	//draw right paddle
+	drawLetterRect(12, 2, canvas.width-14, paddleRightY);
+	
+	//draw ball
+	//drawCircle(ballX, ballY, BALL_RADIUS, 'green');
+	drawLetterRect(3, 3, ballX, ballY);
+
+	canvasContext.fillText(playerLeftScore, 100, 100);
+	canvasContext.fillText(playerRightScore, canvas.width -100, 100);
+}
+
+
+function drawNet(){
+	for(var loop = 0; loop < canvas.height; loop+=40){
+		//drawRect(canvas.width/2-1,loop, 2, 20, 'green');
+		drawLetterRect(3, 1, canvas.width/2 - 3.5, loop);
+	}
+}
+
+function drawRect(leftX, topY, width, height, drawColor){
+
+	// function allows to draw color filled rectangle in one line.
+	canvasContext.fillStyle = drawColor; 
+	canvasContext.fillRect(leftX, topY, width, height, drawColor); 
+}
+
+function drawCircle(centreX, centreY, radius, drawColor){
+	canvasContext.fillStyle = drawColor;
+	canvasContext.beginPath();
+	canvasContext.arc(centreX, centreY, radius, 0, Math.PI*2, true); 
+	//(x centre, y centre, radius, radians for fill, cw/ccw)
+	canvasContext.fill();
+}
+
+function drawLetterRect(rows, cols, topX, topY){
+	canvasContext.fillStyle = 'green';
+	for(var row = 0; row < rows; row++){
+		for(var col = 0; col < cols; col++){
+			
+			if(letterIndex < letters.length){
+				canvasContext.fillText(letters[letterIndex], topX + col*8, topY + row*8);
+				letterIndex++;
+			} else {
+				letterIndex = 0;
+				canvasContext.fillText(letters[letterIndex], topX + col*8, topY + row*8);
+			}
+		}	
+	}
+}
+
+</script>
+
+
+
+</html>
